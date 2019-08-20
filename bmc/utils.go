@@ -50,3 +50,38 @@ func sampleZeroMeanNormal(dim int, covariance ad.Matrix) ad.Vector {
 	AZ := ads.MdotV(A, Z)
 	return AZ
 }
+
+func kineticEnergy(momentum ad.Vector, mass ad.Scalar) ad.Scalar {
+	inverseMassMomentum := ads.VdivS(momentum, mass)
+	return ads.Mul(ad.NewReal(0.5), ads.VdotV(momentum, inverseMassMomentum))
+}
+
+func hamiltonian(position, momentum ad.Vector, mass ad.Scalar, potentialEnergy logDistribution) ad.Scalar {
+	return ads.Add(potentialEnergy(position), kineticEnergy(momentum, mass))
+}
+
+func gradients(f logDistribution, x ad.Vector) ad.Vector {
+	x.Variables(1)
+	s := f(x)
+	gradients := make([]float64, x.Dim())
+	for i := 0; i < x.Dim(); i++ {
+		gradients[i] = s.GetDerivative(i)
+	}
+	return ad.NewVector(ad.RealType, gradients)
+}
+
+func leapfrog(position, momentum ad.Vector, stepSize ad.Scalar, potentialEnergy logDistribution, mass ad.Scalar) (ad.Vector, ad.Vector) {
+	grad := gradients(potentialEnergy, position)
+	momentumChange := ads.VmulS(grad, ads.Mul(ad.NewReal(0.5), stepSize))
+	p := ads.VsubV(momentum, momentumChange)
+	x := ads.VaddV(position, ads.VmulS(ads.VdivS(p, mass), stepSize))
+	grad = gradients(potentialEnergy, x)
+	momentumChange = ads.VmulS(grad, ads.Mul(ad.NewReal(0.5), stepSize))
+	p = ads.VsubV(p, momentumChange)
+	return x, p
+}
+
+func uTurn(xl, xr, p ad.Vector) bool {
+	dot := ads.VdotV(ads.VsubV(xr, xl), p)
+	return dot.GetValue() < 0
+}

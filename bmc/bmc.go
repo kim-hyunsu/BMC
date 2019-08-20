@@ -16,7 +16,7 @@ type Sample struct {
 type BrownianMonteCarlo struct {
 	// Hyperparameter
 	Sampler      MCMC
-	Collide      collision
+	Collide      Collision
 	NumParticles int
 	Radius       float64
 	Masses       []ad.Scalar
@@ -71,7 +71,9 @@ func (bmc *BrownianMonteCarlo) Sample(
 			done := make(chan bool, bmc.NumParticles)
 			for i := 0; i != bmc.NumParticles; i++ {
 				go func(id int) {
-					x, p, accepted := bmc.Sampler.Sample()
+					x, p, accepted := bmc.Sampler.Sample(
+						Xs[id], Ps[id], bmc.Masses[id], bmc.potentialEnergy,
+					)
 					if accepted {
 						bmc.NumAccepted[id]++
 					} else {
@@ -85,7 +87,7 @@ func (bmc *BrownianMonteCarlo) Sample(
 			for i := 0; i != bmc.NumParticles; i++ {
 				<-done
 			}
-			Ps = bmc.Collide(Xs, Ps, bmc.Radius, bmc.coefficients)
+			Ps, _, bmc.NumCollisions = bmc.Collide(Xs, Ps, bmc.Radius, bmc.Masses, bmc.NumCollisions)
 		}
 	}()
 }
@@ -107,4 +109,9 @@ func (bmc *BrownianMonteCarlo) Stop() {
 			time.Sleep(1000)
 		}
 	}
+}
+
+// Mass returns mass of a particle
+func (bmc *BrownianMonteCarlo) Mass(id int) ad.Scalar {
+	return bmc.Masses[id]
 }
