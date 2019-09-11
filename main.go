@@ -74,7 +74,8 @@ func main() {
 	BMC.Sample(target, ad.NewVector(ad.RealType, []float64{0., 0.}), sample, collidedSample)
 	samples := make([]bmc.Sample, 0)
 	for i := 0; i != *numSamples; i++ {
-		samples = append(samples, <-sample)
+		s := <-sample
+		samples = append(samples, s)
 	}
 	BMC.Stop()
 	fmt.Println("[", time.Since(begin), "]")
@@ -90,5 +91,12 @@ func main() {
 		*radius,
 		BMC.NumAccepted, BMC.NumRejected, BMC.NumCollisions,
 		target,
+		*collision,
 	)
+	filename := experiments.GetNameFromBMC(BMC, *collision, *dist, len(samples))
+	path := strings.Join([]string{"csv/", filename, ".csv"}, "")
+	err := experiments.ToCSV(path, samples, BMC)
+	if err != nil {
+		panic(err)
+	}
 }

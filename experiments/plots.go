@@ -32,7 +32,7 @@ func getFunctionName(i interface{}) string {
 	return splitted[len(splitted)-1]
 }
 
-func getImageName(path string, sampler bmc.MCMC, function interface{}, numParticles int, numSamples int, radius float64) string {
+func getImageName(path string, sampler bmc.MCMC, function interface{}, numParticles int, numSamples int, radius float64, collision string) string {
 	base := strings.Join([]string{path, getFunctionName(function)}, "")
 	var samplerName string
 	switch sampler.(type) {
@@ -49,7 +49,7 @@ func getImageName(path string, sampler bmc.MCMC, function interface{}, numPartic
 	particles = strings.Join([]string{particles, "particles"}, "")
 	samples = strings.Join([]string{samples, "samples"}, "")
 	Radius = strings.Join([]string{Radius, "radius"}, "")
-	name := strings.Join([]string{base, samplerName, particles, samples, Radius}, "_")
+	name := strings.Join([]string{base, samplerName, particles, samples, Radius, collision}, "_")
 	return strings.Join([]string{name, ".png"}, "")
 }
 
@@ -61,6 +61,7 @@ func PlotScatters(
 	radius float64,
 	numAccepted, numRejected, numCollision []int,
 	targetDistribution func(ad.Vector) ad.Scalar,
+	collision string,
 ) {
 	p, err := plot.New()
 	if err != nil {
@@ -80,9 +81,9 @@ func PlotScatters(
 			}
 		}
 		if radius != 0 {
-			p.Title.Text = getImageName("bmc-results/", BMC.Sampler, targetDistribution, numParticles, numSamples, radius)
+			p.Title.Text = getImageName("bmc-results/", BMC.Sampler, targetDistribution, numParticles, numSamples, radius, collision)
 		} else {
-			p.Title.Text = getImageName("multi-hmc-results/", BMC.Sampler, targetDistribution, numParticles, numSamples, radius)
+			p.Title.Text = getImageName("multi-hmc-results/", BMC.Sampler, targetDistribution, numParticles, numSamples, radius, collision)
 		}
 		s, err := plotter.NewScatter(data)
 		if err != nil {

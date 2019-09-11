@@ -26,17 +26,17 @@ func AsymMOG2d(x ad.Vector) ad.Scalar {
 	B := ad.NewMatrix(ad.RealType, 2, 2, []float64{1.0, 0.0, 0.0, 1.0})
 	C := ad.NewMatrix(ad.RealType, 2, 2, []float64{2.0, 0.0, 0.0, 2.0})
 
-	mu1 := ad.NewVector(ad.RealType, []float64{4.0 * math.Sqrt(3.0), 0.0})
+	mu1 := ad.NewVector(ad.RealType, []float64{4.0*math.Sqrt(3.0) - 1., 1.})
 	v1 := ads.VsubV(x, mu1)
 	Av1 := ads.MdotV(A, v1)
 	v1Av1 := ads.VdotV(v1, Av1)
 
-	mu2 := ad.NewVector(ad.RealType, []float64{-4.0 * math.Sqrt(3.0), 0.0})
+	mu2 := ad.NewVector(ad.RealType, []float64{-4.0*math.Sqrt(3.0) - 1., 1.})
 	v2 := ads.VsubV(x, mu2)
 	Av2 := ads.MdotV(B, v2)
 	v2Av2 := ads.VdotV(v2, Av2)
 
-	mu3 := ad.NewVector(ad.RealType, []float64{0.0, -8.0})
+	mu3 := ad.NewVector(ad.RealType, []float64{2., -10.})
 	v3 := ads.VsubV(x, mu3)
 	Av3 := ads.MdotV(C, v3)
 	v3Av3 := ads.VdotV(v3, Av3)

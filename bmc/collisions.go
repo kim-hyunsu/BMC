@@ -54,8 +54,12 @@ func NormalCollision(
 		for j := i + 1; j != len(Xs); j++ {
 			x1, x2 := Xs[i], Xs[j]
 			dVector := ads.VsubV(x1, x2)
+			// Additional condition
+			p1, p2 := Ps[i], Ps[j]
+			deltaP := ads.VsubV(p1, p2)
+			//
 			distance := ads.Sqrt(ads.VdotV(dVector, dVector))
-			if distance.GetValue() < 2*radius {
+			if distance.GetValue() < 2*radius && ads.VdotV(dVector, deltaP).GetValue() < 0 {
 				collisionPairList = append(collisionPairList, collisionPair{
 					i: i, j: j,
 					distance: distance,

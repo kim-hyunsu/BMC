@@ -87,10 +87,10 @@ func (nuts NUTS) Sample(
 		} else {
 			dir = 1
 		}
-		var x_, p_ ad.Vector
-		var nelem_ float64
+		var xPrime, pPrime ad.Vector
+		var nelemPrime float64
 		var stop bool
-		xl, pl, xr, pr, x_, p_, nelem_, stop = nuts.buildLeftOrRightTree(
+		xl, pl, xr, pr, xPrime, pPrime, nelemPrime, stop = nuts.buildLeftOrRightTree(
 			xl, pl, xr, pr, logu, dir, depth,
 		)
 		if stop {
@@ -98,13 +98,13 @@ func (nuts NUTS) Sample(
 		}
 
 		// Accept or reject
-		if nelem_/nelem > rand.Float64() {
+		if nelemPrime/nelem > rand.Float64() {
 			accepted = true
-			x = x_
-			p = ads.VmulS(p_, ad.NewReal(-1))
+			x = xPrime
+			p = ads.VmulS(pPrime, ad.NewReal(-1))
 		}
 
-		nelem += nelem_
+		nelem += nelemPrime
 		depth++
 		// Maximum depth of 0 (which is the default)
 		// means unlimited depth
@@ -151,25 +151,25 @@ func (nuts NUTS) buildTree(
 		}
 
 		return x, p, x, p, x, p, nelem, stop
-	} else {
-		depth--
+	}
 
-		xl, pl, xr, pr, x, p, nelem, stop = nuts.buildTree(x, p, logu, dir, depth)
-		if stop {
-			return xl, pl, xr, pr, x, p, nelem, stop
-		}
-		// var x_, p_ ad.Vector
-		// var nelem_ float64
-		xl, pl, xr, pr, x_, p_, nelem_, stop := nuts.buildLeftOrRightTree(xl, pl, xr, pr, logu, dir, depth)
-		nelem += nelem_
+	depth--
 
-		// Select uniformly from nodes.
-		if nelem_/math.Max(nelem, 1.) > rand.Float64() {
-			x = x_
-			p = p_
-		}
+	xl, pl, xr, pr, x, p, nelem, stop = nuts.buildTree(x, p, logu, dir, depth)
+	if stop {
 		return xl, pl, xr, pr, x, p, nelem, stop
 	}
+	// var xPrime, pPrime ad.Vector
+	// var nelem_ float64
+	xl, pl, xr, pr, xPrime, pPrime, nelemPrime, stop := nuts.buildLeftOrRightTree(xl, pl, xr, pr, logu, dir, depth)
+	nelem += nelemPrime
+
+	// Select uniformly from nodes.
+	if nelemPrime/math.Max(nelem, 1.) > rand.Float64() {
+		x = xPrime
+		p = pPrime
+	}
+	return xl, pl, xr, pr, x, p, nelem, stop
 }
 
 func (nuts NUTS) updateDepth(depth int) {

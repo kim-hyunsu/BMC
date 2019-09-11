@@ -85,3 +85,13 @@ func uTurn(xl, xr, p ad.Vector) bool {
 	dot := ads.VdotV(ads.VsubV(xr, xl), p)
 	return dot.GetValue() < 0
 }
+
+// Float64ToVector converts float64 to autodiff.Vector
+func Float64ToVector(arr []float64) ad.Vector {
+	return ad.NewVector(ad.RealType, arr)
+}
+
+// VectorToFloat64 converts autodiff.Vector to float64
+func VectorToFloat64(vec ad.Vector) []float64 {
+	return vec.GetValues()
+}
