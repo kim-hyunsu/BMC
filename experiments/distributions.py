@@ -17,11 +17,11 @@ def AsymMOG2d(x):
         [0., 2.]
     ])
 
-    mu1 = np.array([4*math.sqrt(3) - 1, 1])
+    mu1 = np.array([4*math.sqrt(3) + 1, 1])
     v1Av1 = (x - mu1) @ A @ (x - mu1)
     mu2 = np.array([-4*math.sqrt(3) - 1, 1])
     v2Bv2 = (x - mu2) @ B @ (x - mu2)
-    mu3 = np.array([2, -10])
+    mu3 = np.array([3, -11])
     v3Cv3 = (x - mu3) @ C @ (x - mu3)
 
     detA = np.linalg.det(np.linalg.inv(A))
@@ -37,8 +37,8 @@ def AsymMOG2d(x):
 
 def AsymMOG2d_cdf(x):
     A = multivariate_normal.cdf(
-        x, mean=np.array([4*math.sqrt(3)-1, 1]), cov=0.5)
+        x, mean=np.array([4*math.sqrt(3)+1, 1]), cov=0.5)
     B = multivariate_normal.cdf(
         x, mean=np.array([-4*math.sqrt(3)-1, 1]), cov=1)
-    C = multivariate_normal.cdf(x, mean=np.array([2, -10]), cov=2)
+    C = multivariate_normal.cdf(x, mean=np.array([3, -11]), cov=2)
     return (A+B+C)/3
