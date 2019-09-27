@@ -25,6 +25,7 @@ func main() {
 	radius := flag.Float64("radius", 1.0, "Radius of each particle.")
 	mass := flag.String("mass", "1.0", "Masses of each particle")
 	dist := flag.String("dist", "", "Target probability distribution.")
+	dim := flag.Int("dim", 2, "Dimension of target distribution.")
 
 	flag.Parse()
 
@@ -54,8 +55,12 @@ func main() {
 		collide = bmc.NoCollision
 	}
 	masses := make([]ad.Scalar, *numParticles)
-	for i, m := range strings.Split(*mass, ",") {
-		mass, _ := strconv.ParseFloat(m, 64)
+	// for i, m := range strings.Split(*mass, ",") {
+	// 	mass, _ := strconv.ParseFloat(m, 64)
+	// 	masses[i] = ad.NewScalar(ad.RealType, mass)
+	// }
+	for i := 0; i != *numParticles; i++ {
+		mass, _ := strconv.ParseFloat(*mass, 64)
 		masses[i] = ad.NewScalar(ad.RealType, mass)
 	}
 	sample := make(chan bmc.Sample)
@@ -71,28 +76,30 @@ func main() {
 	}
 	target := experiments.GetDistribution(*dist)
 	begin := time.Now()
-	BMC.Sample(target, ad.NewVector(ad.RealType, []float64{0., 0.}), sample, collidedSample)
+	initialX := make([]float64, *dim)
+	BMC.Sample(target, ad.NewVector(ad.RealType, initialX), sample, collidedSample)
 	samples := make([]bmc.Sample, 0)
 	for i := 0; i != *numSamples; i++ {
 		s := <-sample
+		fmt.Println(i, s)
 		samples = append(samples, s)
 	}
 	BMC.Stop()
 	fmt.Println("[", time.Since(begin), "]")
-	collidedSamples := make([]bmc.Sample, 0)
-	for s := range collidedSample {
-		collidedSamples = append(collidedSamples, s)
-	}
+	// collidedSamples := make([]bmc.Sample, 0)
+	// for s := range collidedSample {
+	// 	collidedSamples = append(collidedSamples, s)
+	// }
 
-	experiments.PlotScatters(
-		BMC,
-		samples,
-		*numParticles, *numSamples,
-		*radius,
-		BMC.NumAccepted, BMC.NumRejected, BMC.NumCollisions,
-		target,
-		*collision,
-	)
+	// experiments.PlotScatters(
+	// 	BMC,
+	// 	samples,
+	// 	*numParticles, *numSamples,
+	// 	*radius,
+	// 	BMC.NumAccepted, BMC.NumRejected, BMC.NumCollisions,
+	// 	target,
+	// 	*collision,
+	// )
 	filename := experiments.GetNameFromBMC(BMC, *collision, *dist, len(samples))
 	path := strings.Join([]string{"csv/", filename, ".csv"}, "")
 	err := experiments.ToCSV(path, samples, BMC)

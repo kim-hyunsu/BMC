@@ -68,6 +68,7 @@ func (nuts NUTS) Sample(
 	nuts.potentialEnergy = potentialEnergy
 	nuts.Delta = 1e3
 	nuts.mass = mass
+	nuts.MaxDepth = 10
 	x = initialX
 	p = initialP
 

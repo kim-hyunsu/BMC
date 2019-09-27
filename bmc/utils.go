@@ -35,18 +35,23 @@ func sampleZeroMeanNormal(dim int, covariance ad.Matrix) ad.Vector {
 	}
 	Z := ad.NewVector(ad.RealType, sample)
 	var chol mat.Cholesky
-	Sigma := mat.NewSymDense(dim, covariance.GetValues())
-	ok := chol.Factorize(Sigma)
-	if !ok {
-		panic("Can't generate multivariate normal distribution")
-	}
-	buffer := make([]float64, 0)
-	for i := 0; i != dim; i++ {
-		for j := 0; j != dim; j++ {
-			buffer = append(buffer, chol.At(i, j))
+	var A ad.Matrix
+	if covariance.Equals(ad.IdentityMatrix(ad.RealType, dim), 0.0001) {
+		A = covariance
+	} else {
+		Sigma := mat.NewSymDense(dim, covariance.GetValues())
+		ok := chol.Factorize(Sigma)
+		if !ok {
+			panic("Can't generate multivariate normal distribution")
 		}
+		buffer := make([]float64, 0)
+		for i := 0; i != dim; i++ {
+			for j := 0; j != dim; j++ {
+				buffer = append(buffer, chol.At(i, j))
+			}
+		}
+		A = ad.NewMatrix(ad.RealType, dim, dim, buffer)
 	}
-	A := ad.NewMatrix(ad.RealType, dim, dim, buffer)
 	AZ := ads.MdotV(A, Z)
 	return AZ
 }

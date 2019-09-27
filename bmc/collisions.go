@@ -24,11 +24,8 @@ func NoCollision(
 ) ([]ad.Vector, []Sample, []int) {
 	collidedSamples := make([]Sample, 0)
 	for i := 0; i != len(Xs); i++ {
-		variance := masses[i].GetValue()
-		Ps[i] = sampleZeroMeanNormal(Xs[i].Dim(), ad.NewMatrix(ad.RealType, 2, 2, []float64{
-			variance, 0,
-			0, variance,
-		}))
+		convMatrix := ads.MmulS(ad.IdentityMatrix(ad.RealType, Xs[i].Dim()), masses[i])
+		Ps[i] = sampleZeroMeanNormal(Xs[i].Dim(), convMatrix)
 	}
 	return Ps, collidedSamples, numCollisions
 }
@@ -93,11 +90,8 @@ func NormalCollision(
 	collidedSamples := make([]Sample, 0) // optional
 	for i, collide := range collision {
 		if !collide {
-			variance := masses[i].GetValue()
-			Ps[i] = sampleZeroMeanNormal(Xs[i].Dim(), ad.NewMatrix(ad.RealType, 2, 2, []float64{
-				variance, 0,
-				0, variance,
-			}))
+			convMatrix := ads.MmulS(ad.IdentityMatrix(ad.RealType, Xs[i].Dim()), masses[i])
+			Ps[i] = sampleZeroMeanNormal(Xs[i].Dim(), convMatrix)
 		} else { // optional
 			collidedSamples = append(collidedSamples, Sample{ID: i, X: Xs[i].GetValues()})
 		}

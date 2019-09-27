@@ -15,6 +15,8 @@ func GetDistribution(name string) Distribution {
 	switch name {
 	case "AsymMOG2d":
 		return AsymMOG2d
+	case "AsymMOG10d":
+		return AsymMOG10d
 	default:
 		return nil
 	}
@@ -46,4 +48,26 @@ func AsymMOG2d(x ad.Vector) ad.Scalar {
 	gaussian3 := ads.Exp(ads.Mul(ad.NewReal(-1), ads.Div(v3Av3, ad.NewReal(2))))
 	MOG := ads.Div(ads.Add(ads.Add(gaussian1, gaussian2), gaussian3), ad.NewReal(3))
 	return MOG
+}
+
+// AsymMOG10d is an asymmetric 100d multivariate Mixture of Gaussian (mode 3)
+func AsymMOG10d(x ad.Vector) ad.Scalar {
+	dim := 10
+	MOG := ad.NewScalar(ad.RealType, 0)
+	for i := 0; i != 3; i++ {
+		eye := ad.IdentityMatrix(ad.RealType, dim)
+		Minv := ads.MmulS(eye, ad.NewReal(1*math.Pow(2, float64(i))))
+		rawMu := make([]float64, 0)
+		for j := 0; j != dim; j++ {
+			rawMu = append(rawMu, math.Pow(-1, float64(i))*2.+math.Pow(-1, float64(j))*float64(i+1))
+		}
+		mu := ad.NewVector(ad.RealType, rawMu)
+		V := ads.VsubV(x, mu)
+		MinvV := ads.MdotV(Minv, V)
+		VMinvV := ads.VdotV(V, MinvV)
+
+		gaussian := ads.Exp(ads.Mul(ad.NewReal(-1), ads.Div(VMinvV, ad.NewReal(2))))
+		MOG = ads.Add(MOG, gaussian)
+	}
+	return ads.Div(MOG, ad.NewReal(3))
 }

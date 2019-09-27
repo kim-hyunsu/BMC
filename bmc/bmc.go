@@ -4,6 +4,7 @@ import (
 	"time"
 
 	ad "github.com/pbenner/autodiff"
+	ads "github.com/pbenner/autodiff/simple"
 )
 
 // Sample is a structure that receives sampled value
@@ -37,7 +38,7 @@ type BrownianMonteCarlo struct {
 // Sample samples a vector from target distribution(dist) and put it in a channel(sample)
 func (bmc *BrownianMonteCarlo) Sample(
 	dist distribution,
-	intialX ad.Vector,
+	initialX ad.Vector,
 	sample, collidedSample chan Sample,
 ) {
 	bmc.sample = sample
@@ -51,19 +52,13 @@ func (bmc *BrownianMonteCarlo) Sample(
 	Xs := make([]ad.Vector, bmc.NumParticles)
 	Ps := make([]ad.Vector, bmc.NumParticles)
 	for i := 0; i != bmc.NumParticles; i++ {
-		Xs[i] = clone(intialX)
-		variance := bmc.Masses[i].GetValue()
-		Ps[i] = sampleZeroMeanNormal(intialX.Dim(), ad.NewMatrix(ad.RealType, 2, 2, []float64{
-			variance, 0,
-			0, variance,
-		}))
-		if bmc.NumAccepted[i] != 0 { // REMOVABLE(for assertion)
-			panic("bmc's statistics are not zero-initialized.")
-		}
+		Xs[i] = clone(initialX)
+		convMatrix := ads.MmulS(ad.IdentityMatrix(ad.RealType, initialX.Dim()), bmc.Masses[i])
+		Ps[i] = sampleZeroMeanNormal(initialX.Dim(), convMatrix)
 	}
 	go func() {
 		defer close(sample)
-		defer close(collidedSample)
+		// defer close(collidedSample)
 		for {
 			if bmc.stop {
 				break
