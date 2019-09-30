@@ -68,7 +68,7 @@ func (nuts NUTS) Sample(
 	nuts.potentialEnergy = potentialEnergy
 	nuts.Delta = 1e3
 	nuts.mass = mass
-	nuts.MaxDepth = 10
+	nuts.MaxDepth = 5
 	x = initialX
 	p = initialP
 
@@ -102,7 +102,8 @@ func (nuts NUTS) Sample(
 		if nelemPrime/nelem > rand.Float64() {
 			accepted = true
 			x = xPrime
-			p = ads.VmulS(pPrime, ad.NewReal(-1))
+			// p = ads.VmulS(pPrime, ad.NewReal(-1))
+			p = pPrime
 		}
 
 		nelem += nelemPrime

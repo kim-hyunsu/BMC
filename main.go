@@ -26,6 +26,7 @@ func main() {
 	mass := flag.String("mass", "1.0", "Masses of each particle")
 	dist := flag.String("dist", "", "Target probability distribution.")
 	dim := flag.Int("dim", 2, "Dimension of target distribution.")
+	verbose := flag.Bool("verbose", false, "List all samples")
 
 	flag.Parse()
 
@@ -81,7 +82,9 @@ func main() {
 	samples := make([]bmc.Sample, 0)
 	for i := 0; i != *numSamples; i++ {
 		s := <-sample
-		fmt.Println(i, s)
+		if *verbose {
+			fmt.Println(i, s)
+		}
 		samples = append(samples, s)
 	}
 	BMC.Stop()

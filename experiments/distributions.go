@@ -17,6 +17,8 @@ func GetDistribution(name string) Distribution {
 		return AsymMOG2d
 	case "AsymMOG10d":
 		return AsymMOG10d
+	case "Sym16GM2d":
+		return Sym16GM2d
 	default:
 		return nil
 	}
@@ -50,16 +52,37 @@ func AsymMOG2d(x ad.Vector) ad.Scalar {
 	return MOG
 }
 
+// Sym16GM2d is an symmetric 2d multivariate Gaussian mixture (mode 16)
+func Sym16GM2d(x ad.Vector) ad.Scalar {
+	modes := 16
+	GM := ad.NewScalar(ad.RealType, 0)
+	for i := 0; i != modes; i++ {
+		A := ad.NewMatrix(ad.RealType, 2, 2, []float64{1., 0., 0., 1.})
+		width := int(math.Sqrt(float64(modes)))
+		a, b := float64(i/width), float64(i%width)
+		mu := ad.NewVector(ad.RealType, []float64{a * 10, b * 10})
+		v := ads.VsubV(x, mu)
+		Av := ads.MdotV(A, v)
+		vAv := ads.VdotV(v, Av)
+
+		gaussian := ads.Exp(ads.Mul(ad.NewReal(-1), ads.Div(vAv, ad.NewReal(2))))
+		GM = ads.Add(GM, gaussian)
+	}
+	return ads.Div(GM, ad.NewReal(float64(modes)))
+}
+
 // AsymMOG10d is an asymmetric 100d multivariate Mixture of Gaussian (mode 3)
 func AsymMOG10d(x ad.Vector) ad.Scalar {
 	dim := 10
 	MOG := ad.NewScalar(ad.RealType, 0)
 	for i := 0; i != 3; i++ {
 		eye := ad.IdentityMatrix(ad.RealType, dim)
-		Minv := ads.MmulS(eye, ad.NewReal(1*math.Pow(2, float64(i))))
+		// Minv := ads.MmulS(eye, ad.NewReal(1*math.Pow(2, float64(i))))
+		Minv := eye
 		rawMu := make([]float64, 0)
 		for j := 0; j != dim; j++ {
-			rawMu = append(rawMu, math.Pow(-1, float64(i))*2.+math.Pow(-1, float64(j))*float64(i+1))
+			rawMu = append(rawMu, float64(i)*5)
+			// rawMu = append(rawMu, math.Pow(-1, float64(i))*2.+math.Pow(-1, float64(j))*float64(i+1))
 		}
 		mu := ad.NewVector(ad.RealType, rawMu)
 		V := ads.VsubV(x, mu)

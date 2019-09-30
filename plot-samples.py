@@ -8,7 +8,8 @@ data = np.genfromtxt(sys.argv[1], delimiter=',')
 sampler, collision, distribution, numParticles, radius, numSamples = sys.argv[1].split('.')[
     0].split('_')
 # constants
-dim = int(''.join([i for i in distribution if i.isdigit()]))
+dim = int(''.join(list(next(iter(())) if not i.isdigit()
+                       else i for i in distribution[-2::-1]))[::-1])
 particles = int(numParticles[1:])
 radius = float(radius[1:])
 samples = int(numSamples[1:])
@@ -22,6 +23,11 @@ id_list = data[:, 0]
 fig = plt.figure(figsize=(36, 20))
 columns = 9
 rows = 5
+size = 0.1
+if dim == 2:
+    columns = 1
+    rows = 1
+    size = 5
 
 # split each id
 sample_list = []
@@ -39,7 +45,7 @@ for order, (i, j) in enumerate(itertools.combinations([n for n in range(dim)], 2
     ax[-1].set_title(f"Dim {i+1} vs. {j+1}")
     for id, sample_set in enumerate(sample_list):
         ax[-1].scatter(sample_set[:, i], sample_set[:, i+1],
-                       s=1, c='C'+str(id))
+                       s=size, c='C'+str(id))
 
 
 plt.savefig("samples/" + sys.argv[1].split('/')[1].split('.')[0] + ".png")
