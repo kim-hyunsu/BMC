@@ -5,7 +5,7 @@ import itertools
 
 # parsing data
 data = np.genfromtxt(sys.argv[1], delimiter=',')
-sampler, collision, distribution, numParticles, radius, numSamples = sys.argv[1].split('.')[
+sampler, collision, distribution, numParticles, radius, numSamples = sys.argv[1].split('.csv')[
     0].split('_')
 # constants
 dim = int(''.join(list(next(iter(())) if not i.isdigit()
@@ -24,10 +24,11 @@ fig = plt.figure(figsize=(36, 20))
 columns = 9
 rows = 5
 size = 0.1
-if dim == 2:
+if dim <= 2:
+    fig = plt.figure(figsize=(36, 15*(particles+1)))
     columns = 1
-    rows = 1
-    size = 5
+    rows = particles + 1
+    size = 2.5
 
 # split each id
 sample_list = []
@@ -43,9 +44,23 @@ ax = []
 for order, (i, j) in enumerate(itertools.combinations([n for n in range(dim)], 2)):
     ax.append(fig.add_subplot(rows, columns, order+1))
     ax[-1].set_title(f"Dim {i+1} vs. {j+1}")
+    xlim = (min(np.amin(s[:, i]) for s in sample_list),
+            max(np.amax(s[:, i]) for s in sample_list))
+    ylim = (min(np.amin(s[:, j]) for s in sample_list),
+            max(np.amax(s[:, j]) for s in sample_list))
+    ax[-1].set_xlim(xlim)
+    ax[-1].set_ylim(ylim)
     for id, sample_set in enumerate(sample_list):
-        ax[-1].scatter(sample_set[:, i], sample_set[:, i+1],
+        ax[-1].scatter(sample_set[:, i], sample_set[:, j],
                        s=size, c='C'+str(id))
+    if dim <= 2:
+        for id, sample_set in enumerate(sample_list):
+            ax.append(fig.add_subplot(rows, columns, id+2))
+            ax[-1].set_title(f"Particle {id+1}")
+            ax[-1].set_xlim(xlim)
+            ax[-1].set_ylim(ylim)
+            ax[-1].scatter(sample_set[:, i], sample_set[:, j],
+                           s=size, c='C'+str(id))
 
 
-plt.savefig("samples/" + sys.argv[1].split('/')[1].split('.')[0] + ".png")
+plt.savefig("samples/" + sys.argv[1].split('/')[1].split('.csv')[0] + ".png")

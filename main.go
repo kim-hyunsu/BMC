@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math/rand"
 	"runtime"
-	"strconv"
 	"strings"
 	"time"
 
@@ -23,7 +22,7 @@ func main() {
 	collision := flag.String("collision", "NormalCollision", "Type of collision.")
 	mcmc := flag.String("mcmc", "nuts", "HMC or NUTS.")
 	radius := flag.Float64("radius", 1.0, "Radius of each particle.")
-	mass := flag.String("mass", "1.0", "Masses of each particle")
+	mass := flag.Float64("mass", 1.0, "Masses of each particle")
 	dist := flag.String("dist", "", "Target probability distribution.")
 	dim := flag.Int("dim", 2, "Dimension of target distribution.")
 	verbose := flag.Bool("verbose", false, "List all samples")
@@ -56,13 +55,10 @@ func main() {
 		collide = bmc.NoCollision
 	}
 	masses := make([]ad.Scalar, *numParticles)
-	// for i, m := range strings.Split(*mass, ",") {
-	// 	mass, _ := strconv.ParseFloat(m, 64)
-	// 	masses[i] = ad.NewScalar(ad.RealType, mass)
-	// }
+	radii := make([]float64, *numParticles)
 	for i := 0; i != *numParticles; i++ {
-		mass, _ := strconv.ParseFloat(*mass, 64)
-		masses[i] = ad.NewScalar(ad.RealType, mass)
+		masses[i] = ad.NewScalar(ad.RealType, *mass)
+		radii[i] = *radius
 	}
 	sample := make(chan bmc.Sample)
 	collidedSample := make(chan bmc.Sample, *numSamples)
@@ -72,12 +68,12 @@ func main() {
 		Sampler:      sampler,
 		Collide:      collide,
 		NumParticles: *numParticles,
-		Radius:       *radius,
+		Radius:       radii,
 		Masses:       masses,
 	}
 	target := experiments.GetDistribution(*dist)
-	begin := time.Now()
 	initialX := make([]float64, *dim)
+	begin := time.Now()
 	BMC.Sample(target, ad.NewVector(ad.RealType, initialX), sample, collidedSample)
 	samples := make([]bmc.Sample, 0)
 	for i := 0; i != *numSamples; i++ {
@@ -87,8 +83,8 @@ func main() {
 		}
 		samples = append(samples, s)
 	}
-	BMC.Stop()
 	fmt.Println("[", time.Since(begin), "]")
+	BMC.Stop()
 	// collidedSamples := make([]bmc.Sample, 0)
 	// for s := range collidedSample {
 	// 	collidedSamples = append(collidedSamples, s)

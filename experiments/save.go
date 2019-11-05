@@ -23,7 +23,7 @@ func GetNameFromBMC(BMC bmc.BrownianMonteCarlo, collsion string, target string, 
 	}
 	collsionName := collsion
 	valueofParticles := strconv.Itoa(BMC.NumParticles)
-	valueofRadius := strconv.FormatFloat(BMC.Radius, 'f', -1, 64)
+	valueofRadius := strconv.FormatFloat(BMC.InitialRadius, 'f', -1, 64)
 	valueofSamples := strconv.Itoa(numSamples)
 	targetName := target
 	valueofParticles = strings.Join([]string{"P", valueofParticles}, "")

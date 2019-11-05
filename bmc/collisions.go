@@ -10,7 +10,7 @@ import (
 // Collision is a type of collision functions
 type Collision = func(
 	Xs, Ps []ad.Vector,
-	radius float64,
+	radius []float64,
 	masses []ad.Scalar,
 	numCollisions []int,
 ) ([]ad.Vector, []Sample, []int)
@@ -18,7 +18,7 @@ type Collision = func(
 // NoCollision just resamples momenta
 func NoCollision(
 	Xs, Ps []ad.Vector,
-	radius float64,
+	radius []float64,
 	masses []ad.Scalar,
 	numCollisions []int,
 ) ([]ad.Vector, []Sample, []int) {
@@ -30,10 +30,11 @@ func NoCollision(
 	return Ps, collidedSamples, numCollisions
 }
 
+// TODO: Closest pair of points
 // NormalCollision is a collision dynamics that preserves total momenta
 func NormalCollision(
 	Xs, Ps []ad.Vector,
-	radius float64,
+	radius []float64,
 	masses []ad.Scalar,
 	numCollisions []int,
 ) ([]ad.Vector, []Sample, []int) {
@@ -56,7 +57,7 @@ func NormalCollision(
 			deltaP := ads.VsubV(p1, p2)
 			//
 			distance := ads.Sqrt(ads.VdotV(dVector, dVector))
-			if distance.GetValue() < 2*radius && ads.VdotV(dVector, deltaP).GetValue() < 0 {
+			if distance.GetValue() < radius[i]+radius[j] && ads.VdotV(dVector, deltaP).GetValue() < 0 {
 				collisionPairList = append(collisionPairList, collisionPair{
 					i: i, j: j,
 					distance: distance,
