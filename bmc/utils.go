@@ -104,10 +104,10 @@ func VectorToFloat64(vec ad.Vector) []float64 {
 func updateRadius(
 	oldRadius float64,
 	newPotential, oldPotential ad.Scalar,
-	epsilon ad.Scalar,
+	S ad.Scalar,
 ) (newRadius float64) {
 	oldRadiusScalar := ad.NewReal(oldRadius)
-	newRadiusScalar := ads.Add(oldRadiusScalar, ads.Div(ads.Sub(newPotential, oldPotential), epsilon))
+	newRadiusScalar := ads.Add(oldRadiusScalar, ads.Div(ads.Sub(newPotential, oldPotential), S))
 	newRadius = newRadiusScalar.GetValue()
 	return newRadius
 }

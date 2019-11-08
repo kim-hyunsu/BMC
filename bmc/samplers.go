@@ -14,7 +14,9 @@ type MCMC interface {
 		initialX, initialP ad.Vector,
 		mass ad.Scalar,
 		potentialEnergy logDistribution,
-	) (x, p ad.Vector, accepted bool)
+	) (x, p ad.Vector, accepted bool, acceptance ad.Scalar)
+	getStepSize() ad.Scalar
+	setStepSize(newStepSize ad.Scalar)
 }
 
 // HMC denotes Hamiltonian Monte Carlo sampler
@@ -28,7 +30,7 @@ func (hmc HMC) Sample(
 	initialX, initialP ad.Vector,
 	mass ad.Scalar,
 	potentialEnergy logDistribution,
-) (x, p ad.Vector, accepted bool) {
+) (x, p ad.Vector, accepted bool, acceptance ad.Scalar) {
 	H0 := hamiltonian(initialX, initialP, mass, potentialEnergy)
 	x, p = clone(initialX), clone(initialP)
 	for i := 0; i != hmc.NumSteps; i++ {
@@ -36,7 +38,8 @@ func (hmc HMC) Sample(
 	}
 	H := hamiltonian(x, p, mass, potentialEnergy)
 
-	if ads.Sub(H, H0).GetValue() >= math.Log(1-rand.Float64()) {
+	deltaH := ads.Sub(H, H0)
+	if deltaH.GetValue() >= math.Log(1-rand.Float64()) {
 		p = ads.VmulS(p, ad.NewReal(-1))
 		accepted = true
 	} else {
@@ -44,7 +47,16 @@ func (hmc HMC) Sample(
 		p = initialP
 		accepted = false
 	}
-	return x, p, accepted
+	acceptance = ads.Min(ad.NewReal(1), ads.Exp(deltaH))
+	return x, p, accepted, acceptance
+}
+
+func (hmc HMC) getStepSize() ad.Scalar {
+	return hmc.StepSize
+}
+
+func (hmc HMC) setStepSize(newStepSize ad.Scalar) {
+	hmc.StepSize = newStepSize
 }
 
 // NUTS denotes No-U-Turn Sampler
@@ -183,4 +195,12 @@ func (nuts NUTS) updateDepth(depth int) {
 		nuts.Depth[i][0]++
 	}
 	nuts.Depth[depth][1]++
+}
+
+func (nuts NUTS) getStepSize() ad.Scalar {
+	return nuts.StepSize
+}
+
+func (nuts NUTS) setStepSize(newStepSize ad.Scalar) {
+	nuts.StepSize = newStepSize
 }

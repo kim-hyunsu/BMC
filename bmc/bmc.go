@@ -36,6 +36,10 @@ type BrownianMonteCarlo struct {
 
 	// For plotting
 	InitialRadius float64
+
+	// Adaptive step size
+	count    int
+	maxAdapt int
 }
 
 // Sample samples a vector from target distribution(dist) and put it in a channel(sample)
@@ -44,6 +48,7 @@ func (bmc *BrownianMonteCarlo) Sample(
 	initialX ad.Vector,
 	sample, collidedSample chan Sample,
 ) {
+	// Initialize
 	bmc.sample = sample
 	bmc.collidedSample = collidedSample
 	bmc.potentialEnergy = minusLogDist(dist)
@@ -55,9 +60,10 @@ func (bmc *BrownianMonteCarlo) Sample(
 	// Adaptive radius
 	potentials := make([]ad.Scalar, bmc.NumParticles)
 	maxPotential := ad.NewScalar(ad.RealType, -9999)
-	epsilon := ad.NewReal(50 * bmc.Radius[0])
+	S := ad.NewReal(50 * bmc.Radius[0])
 	bmc.InitialRadius = bmc.Radius[0]
 
+	// Initialize sampler
 	Xs := make([]ad.Vector, bmc.NumParticles)
 	Ps := make([]ad.Vector, bmc.NumParticles)
 	for i := 0; i != bmc.NumParticles; i++ {
@@ -74,8 +80,19 @@ func (bmc *BrownianMonteCarlo) Sample(
 		}
 	}
 	for i := 0; i != bmc.NumParticles; i++ {
-		bmc.Radius[i] = updateRadius(bmc.Radius[i], potentials[i], maxPotential, epsilon)
+		bmc.Radius[i] = updateRadius(bmc.Radius[i], potentials[i], maxPotential, S)
 	}
+
+	// Adaptive step size
+	bmc.Sampler.setStepSize(findReasonableEpsilon(initialX))
+	mu := ads.Log(ads.Mul(ad.NewReal(10), bmc.Sampler.getStepSize()))
+	epsBar := ad.NewScalar(ad.RealType, 1)
+	HBar := ad.NewScalar(ad.RealType, 0)
+	gamma := ad.NewScalar(ad.RealType, 0.05)
+	t0 = ad.NewScalar(ad.RealType, 10)
+	kappa = ad.NewScalar(ad.RealType, 0.75)
+
+	// Sampling (parallelized)
 	go func() {
 		defer close(sample)
 		// defer close(collidedSample)
@@ -83,10 +100,11 @@ func (bmc *BrownianMonteCarlo) Sample(
 			if bmc.stop {
 				break
 			}
+			bmc.count++
 			done := make(chan bool, bmc.NumParticles)
 			for i := 0; i != bmc.NumParticles; i++ {
 				go func(id int) {
-					x, p, accepted := bmc.Sampler.Sample(
+					x, p, accepted, acceptance := bmc.Sampler.Sample(
 						Xs[id], Ps[id], bmc.Masses[id], bmc.potentialEnergy,
 					)
 					if accepted {
@@ -96,7 +114,7 @@ func (bmc *BrownianMonteCarlo) Sample(
 					}
 					Xs[id], Ps[id] = x, p
 					newPotential := bmc.potentialEnergy(Xs[id])
-					bmc.Radius[id] = updateRadius(bmc.Radius[id], newPotential, potentials[id], epsilon)
+					bmc.Radius[id] = updateRadius(bmc.Radius[id], newPotential, potentials[id], S)
 					potentials[id] = newPotential
 					sample <- Sample{ID: id, X: x.GetValues()}
 					done <- true
@@ -107,6 +125,12 @@ func (bmc *BrownianMonteCarlo) Sample(
 			}
 			// fmt.Println(bmc.Radius)
 			Ps, _, bmc.NumCollisions = bmc.Collide(Xs, Ps, bmc.Radius, bmc.Masses, bmc.NumCollisions)
+
+			// Adaptive step size
+			if bmc.count <= bmc.maxAdapt {
+				temp := ads.Div(ad.NewReal(1), ads.Add(count, t0))
+				HBar = ads.Add(ads.Mul(HBar, ads.Sub(ad.NewReal(1), temp)), ads.Mul(temp, ads.Sub()))
+			}
 		}
 	}()
 }
