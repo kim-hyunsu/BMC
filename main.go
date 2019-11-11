@@ -70,6 +70,7 @@ func main() {
 		NumParticles: *numParticles,
 		Radius:       radii,
 		Masses:       masses,
+		MaxAdapt:     *numSamples / 100,
 	}
 	target := experiments.GetDistribution(*dist)
 	initialX := make([]float64, *dim)

@@ -14,9 +14,10 @@ type MCMC interface {
 		initialX, initialP ad.Vector,
 		mass ad.Scalar,
 		potentialEnergy logDistribution,
+		stepSize ad.Scalar,
 	) (x, p ad.Vector, accepted bool, acceptance ad.Scalar)
-	getStepSize() ad.Scalar
-	setStepSize(newStepSize ad.Scalar)
+	// getStepSize() ad.Scalar
+	// setStepSize(newStepSize ad.Scalar)
 }
 
 // HMC denotes Hamiltonian Monte Carlo sampler
@@ -30,11 +31,12 @@ func (hmc HMC) Sample(
 	initialX, initialP ad.Vector,
 	mass ad.Scalar,
 	potentialEnergy logDistribution,
+	stepSize ad.Scalar,
 ) (x, p ad.Vector, accepted bool, acceptance ad.Scalar) {
 	H0 := hamiltonian(initialX, initialP, mass, potentialEnergy)
 	x, p = clone(initialX), clone(initialP)
 	for i := 0; i != hmc.NumSteps; i++ {
-		x, p = leapfrog(x, p, hmc.StepSize, potentialEnergy, mass)
+		x, p = leapfrog(x, p, stepSize, potentialEnergy, mass)
 	}
 	H := hamiltonian(x, p, mass, potentialEnergy)
 
@@ -47,16 +49,8 @@ func (hmc HMC) Sample(
 		p = initialP
 		accepted = false
 	}
-	acceptance = ads.Min(ad.NewReal(1), ads.Exp(deltaH))
+	acceptance = ads.Min(ad.NewReal(1), ads.Exp(ads.Neg(deltaH)))
 	return x, p, accepted, acceptance
-}
-
-func (hmc HMC) getStepSize() ad.Scalar {
-	return hmc.StepSize
-}
-
-func (hmc HMC) setStepSize(newStepSize ad.Scalar) {
-	hmc.StepSize = newStepSize
 }
 
 // NUTS denotes No-U-Turn Sampler
@@ -75,21 +69,27 @@ func (nuts NUTS) Sample(
 	initialX, initialP ad.Vector,
 	mass ad.Scalar,
 	potentialEnergy logDistribution,
-) (x, p ad.Vector, accepted bool) {
+	stepSize ad.Scalar,
+) (x, p ad.Vector, accepted bool, acceptance ad.Scalar) {
 	// Set defaults
 	nuts.potentialEnergy = potentialEnergy
 	nuts.Delta = 1e3
 	nuts.mass = mass
 	nuts.MaxDepth = 5
+	nuts.StepSize = stepSize
 	x = initialX
 	p = initialP
+
+	// for adaptive step size
+	var alpha ad.Scalar
+	var nAlpha int
 
 	H0 := hamiltonian(x, p, mass, potentialEnergy)
 	// Sample the slice variable
 	logu := ads.Add(ad.NewReal(math.Log(1-rand.Float64())), H0)
 
 	// Initialize the tree
-	xl, pl, xr, pr, depth, nelem := x, p, x, p, 0, 1.
+	xl, pl, xr, pr, depth, nelem := clone(x), clone(p), clone(x), clone(p), 0, 1.
 	accepted = false
 	// Integrate forward
 	for {
@@ -103,8 +103,8 @@ func (nuts NUTS) Sample(
 		var xPrime, pPrime ad.Vector
 		var nelemPrime float64
 		var stop bool
-		xl, pl, xr, pr, xPrime, pPrime, nelemPrime, stop = nuts.buildLeftOrRightTree(
-			xl, pl, xr, pr, logu, dir, depth,
+		xl, pl, xr, pr, xPrime, pPrime, nelemPrime, stop, alpha, nAlpha = nuts.buildLeftOrRightTree(
+			xl, pl, xr, pr, logu, dir, depth, x, p,
 		)
 		if stop {
 			break
@@ -114,7 +114,6 @@ func (nuts NUTS) Sample(
 		if nelemPrime/nelem > rand.Float64() {
 			accepted = true
 			x = xPrime
-			// p = ads.VmulS(pPrime, ad.NewReal(-1))
 			p = pPrime
 		}
 
@@ -127,31 +126,34 @@ func (nuts NUTS) Sample(
 		}
 	}
 	nuts.updateDepth(depth)
-	return x, p, accepted
+	acceptance = ads.Div(alpha, ad.NewReal(float64(nAlpha)))
+	return x, p, accepted, acceptance
 }
 
 func (nuts NUTS) buildLeftOrRightTree(
 	xl, pl, xr, pr ad.Vector,
 	logu ad.Scalar,
 	dir float64, depth int,
-) (_, _, _, _, x, p ad.Vector, nelem float64, stop bool) {
+	initialX, initialP ad.Vector,
+) (_, _, _, _, x, p ad.Vector, nelem float64, stop bool, alpha ad.Scalar, nAlpha int) {
 	if dir == -1 {
-		xl, pl, _, _, x, p, nelem, stop = nuts.buildTree(xl, pl, logu, dir, depth)
+		xl, pl, _, _, x, p, nelem, stop, alpha, nAlpha = nuts.buildTree(xl, pl, logu, dir, depth, initialX, initialP)
 	} else {
-		_, _, xr, pr, x, p, nelem, stop = nuts.buildTree(xr, pr, logu, dir, depth)
+		_, _, xr, pr, x, p, nelem, stop, alpha, nAlpha = nuts.buildTree(xr, pr, logu, dir, depth, initialX, initialP)
 	}
 
 	if uTurn(xl, xr, pl) || uTurn(xl, xr, pr) {
 		stop = true
 	}
-	return xl, pl, xr, pr, x, p, nelem, stop
+	return xl, pl, xr, pr, x, p, nelem, stop, alpha, nAlpha
 }
 
 func (nuts NUTS) buildTree(
 	x, p ad.Vector,
 	logu ad.Scalar,
 	dir float64, depth int,
-) (xl, pl, xr, pr, _, _ ad.Vector, nelem float64, stop bool) {
+	initialX, initialP ad.Vector,
+) (xl, pl, xr, pr, _, _ ad.Vector, nelem float64, stop bool, alpha ad.Scalar, nAlpha int) {
 	if depth == 0 {
 		// Base case: single leapfrog
 		x, p := clone(x), clone(p)
@@ -163,19 +165,21 @@ func (nuts NUTS) buildTree(
 		if H1.GetValue()+nuts.Delta <= logu.GetValue() {
 			stop = true
 		}
-
-		return x, p, x, p, x, p, nelem, stop
+		H0 := hamiltonian(initialX, initialP, nuts.mass, nuts.potentialEnergy)
+		alpha = ads.Min(ad.NewReal(1), ads.Exp(ads.Sub(H0, H1)))
+		return x, p, x, p, x, p, nelem, stop, alpha, 1
 	}
 
 	depth--
-
-	xl, pl, xr, pr, x, p, nelem, stop = nuts.buildTree(x, p, logu, dir, depth)
+	var alphaPrime, alphaTwoPrime ad.Scalar
+	var nAlphaPrime, nAlphaTwoPrime int
+	xl, pl, xr, pr, x, p, nelem, stop, alphaPrime, nAlphaPrime = nuts.buildTree(x, p, logu, dir, depth, initialX, initialP)
 	if stop {
-		return xl, pl, xr, pr, x, p, nelem, stop
+		return xl, pl, xr, pr, x, p, nelem, stop, alphaPrime, nAlphaPrime
 	}
 	// var xPrime, pPrime ad.Vector
 	// var nelem_ float64
-	xl, pl, xr, pr, xPrime, pPrime, nelemPrime, stop := nuts.buildLeftOrRightTree(xl, pl, xr, pr, logu, dir, depth)
+	xl, pl, xr, pr, xPrime, pPrime, nelemPrime, stop, alphaTwoPrime, nAlphaTwoPrime := nuts.buildLeftOrRightTree(xl, pl, xr, pr, logu, dir, depth, initialX, initialP)
 	nelem += nelemPrime
 
 	// Select uniformly from nodes.
@@ -183,7 +187,10 @@ func (nuts NUTS) buildTree(
 		x = xPrime
 		p = pPrime
 	}
-	return xl, pl, xr, pr, x, p, nelem, stop
+	// adaptive step size
+	alphaPrime = ads.Add(alphaPrime, alphaTwoPrime)
+	nAlphaPrime += nAlphaTwoPrime
+	return xl, pl, xr, pr, x, p, nelem, stop, alphaPrime, nAlphaPrime
 }
 
 func (nuts NUTS) updateDepth(depth int) {
