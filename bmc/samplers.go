@@ -33,10 +33,13 @@ func (hmc HMC) Sample(
 	potentialEnergy logDistribution,
 	stepSize ad.Scalar,
 ) (x, p ad.Vector, accepted bool, acceptance ad.Scalar) {
+	if stepSize.GetValue() != 0 {
+		hmc.StepSize = stepSize
+	}
 	H0 := hamiltonian(initialX, initialP, mass, potentialEnergy)
 	x, p = clone(initialX), clone(initialP)
 	for i := 0; i != hmc.NumSteps; i++ {
-		x, p = leapfrog(x, p, stepSize, potentialEnergy, mass)
+		x, p = leapfrog(x, p, hmc.StepSize, potentialEnergy, mass)
 	}
 	H := hamiltonian(x, p, mass, potentialEnergy)
 
@@ -76,7 +79,9 @@ func (nuts NUTS) Sample(
 	nuts.Delta = 1e3
 	nuts.mass = mass
 	nuts.MaxDepth = 5
-	nuts.StepSize = stepSize
+	if stepSize.GetValue() != 0 {
+		nuts.StepSize = stepSize
+	}
 	x = initialX
 	p = initialP
 

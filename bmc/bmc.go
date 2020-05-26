@@ -1,7 +1,6 @@
 package bmc
 
 import (
-	"fmt"
 	"time"
 
 	ad "github.com/pbenner/autodiff"
@@ -63,8 +62,11 @@ func (bmc *BrownianMonteCarlo) Sample(
 	// Adaptive radius
 	potentials := make([]ad.Scalar, bmc.NumParticles)
 	maxPotential := ad.NewScalar(ad.RealType, -9999)
-	S := ad.NewReal(50 * bmc.Radius[0])
+	S := ad.NewReal(65)
 	bmc.InitialRadius = bmc.Radius[0]
+
+	// Adaptive step size
+	bmc.dualAvgVarList = make([]map[string]ad.Scalar, bmc.NumParticles)
 
 	// Initialize sampler
 	Xs := make([]ad.Vector, bmc.NumParticles)
@@ -82,14 +84,20 @@ func (bmc *BrownianMonteCarlo) Sample(
 			maxPotential = potentials[i]
 		}
 		// adaptive step size
+		var eps ad.Scalar
+		if bmc.MaxAdapt != 0 {
+			eps = bmc.findReasonableEpsilon(initialX)
+		} else {
+			eps = ad.NewScalar(ad.RealType, 0)
+		}
 		bmc.dualAvgVarList[i] = map[string]ad.Scalar{
-			"eps":    bmc.findReasonableEpsilon(initialX),
+			"eps":    eps,
 			"epsBar": ad.NewScalar(ad.RealType, 1),
 			"HBar":   ad.NewScalar(ad.RealType, 0),
 		}
 	}
 	for i := 0; i != bmc.NumParticles; i++ {
-		bmc.Radius[i] = updateRadius(bmc.Radius[i], potentials[i], maxPotential, S)
+		bmc.Radius[i] = updateRadius(bmc.Radius[i], potentials[i], maxPotential, S, initialX.Dim())
 	}
 
 	// Adaptive step size
@@ -110,6 +118,7 @@ func (bmc *BrownianMonteCarlo) Sample(
 				break
 			}
 			bmc.count++
+			// fmt.Println("Sample", bmc.count)
 			done := make(chan bool, bmc.NumParticles)
 			for i := 0; i != bmc.NumParticles; i++ {
 				go func(id int) {
@@ -125,7 +134,7 @@ func (bmc *BrownianMonteCarlo) Sample(
 
 					// adaptive radius
 					newPotential := bmc.potentialEnergy(Xs[id])
-					bmc.Radius[id] = updateRadius(bmc.Radius[id], newPotential, potentials[id], S)
+					bmc.Radius[id] = updateRadius(bmc.Radius[id], newPotential, potentials[id], S, Xs[id].Dim())
 					potentials[id] = newPotential
 
 					// adaptive step size
@@ -138,12 +147,21 @@ func (bmc *BrownianMonteCarlo) Sample(
 			for i := 0; i != bmc.NumParticles; i++ {
 				<-done
 			}
-			// fmt.Println(bmc.Radius)
+			// for i := 0; i != bmc.NumParticles; i++ {
+			// 	HBeforeCollision := hamiltonian(Xs[i], Ps[i], bmc.Masses[i], bmc.potentialEnergy)
+			// 	fmt.Print("[", i+1, "]", HBeforeCollision, ", ")
+			// }
+			// fmt.Print("\n")
 			Ps, _, bmc.NumCollisions = bmc.Collide(Xs, Ps, bmc.Radius, bmc.Masses, bmc.NumCollisions)
+			// for i := 0; i != bmc.NumParticles; i++ {
+			// 	HAfterCollision := hamiltonian(Xs[i], Ps[i], bmc.Masses[i], bmc.potentialEnergy)
+			// 	fmt.Print("[", i+1, "]", HAfterCollision, ", ")
+			// }
+			// fmt.Print("\n")
 
 			// Adaptive step size
 			bmc.dualAveraging(mu, gamma, t0, kappa, bmc.Delta)
-			fmt.Println(bmc.dualAvgVarList)
+			// fmt.Println(bmc.dualAvgVarList)
 		}
 	}()
 }

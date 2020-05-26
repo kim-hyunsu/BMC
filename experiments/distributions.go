@@ -23,6 +23,8 @@ func GetDistribution(name string) Distribution {
 		return AsymUnbalMOG2d
 	case "AsymUnbalRevMOG2d":
 		return AsymUnbalRevMOG2d
+	case "AsymUnbalLevMOG2d":
+		return AsymUnbalLevMOG2d
 	default:
 		return nil
 	}
@@ -126,9 +128,9 @@ func AsymUnbalMOG2d(x ad.Vector) ad.Scalar {
 	v3Av3 := ads.VdotV(v3, Av3)
 	detCinv := ad.NewReal(0.5)
 
-	gaussian1 := ads.Mul(ad.NewReal(0.5), ads.Div(ads.Exp(ads.Mul(ad.NewReal(-1), ads.Div(v1Av1, ad.NewReal(2)))), detAinv))
-	gaussian2 := ads.Mul(ad.NewReal(1), ads.Div(ads.Exp(ads.Mul(ad.NewReal(-1), ads.Div(v2Av2, ad.NewReal(2)))), detBinv))
-	gaussian3 := ads.Mul(ad.NewReal(2), ads.Div(ads.Exp(ads.Mul(ad.NewReal(-1), ads.Div(v3Av3, ad.NewReal(2)))), detCinv))
+	gaussian1 := ads.Mul(ad.NewReal(1), ads.Div(ads.Exp(ads.Mul(ad.NewReal(-1), ads.Div(v1Av1, ad.NewReal(2)))), detAinv))
+	gaussian2 := ads.Mul(ad.NewReal(2), ads.Div(ads.Exp(ads.Mul(ad.NewReal(-1), ads.Div(v2Av2, ad.NewReal(2)))), detBinv))
+	gaussian3 := ads.Mul(ad.NewReal(3), ads.Div(ads.Exp(ads.Mul(ad.NewReal(-1), ads.Div(v3Av3, ad.NewReal(2)))), detCinv))
 	MOG := ads.Add(ads.Add(gaussian1, gaussian2), gaussian3)
 	return MOG
 }
@@ -160,6 +162,37 @@ func AsymUnbalRevMOG2d(x ad.Vector) ad.Scalar {
 	gaussian1 := ads.Mul(ad.NewReal(2), ads.Div(ads.Exp(ads.Mul(ad.NewReal(-1), ads.Div(v1Av1, ad.NewReal(2)))), detAinv))
 	gaussian2 := ads.Mul(ad.NewReal(1), ads.Div(ads.Exp(ads.Mul(ad.NewReal(-1), ads.Div(v2Av2, ad.NewReal(2)))), detBinv))
 	gaussian3 := ads.Mul(ad.NewReal(0.5), ads.Div(ads.Exp(ads.Mul(ad.NewReal(-1), ads.Div(v3Av3, ad.NewReal(2)))), detCinv))
+	MOG := ads.Add(ads.Add(gaussian1, gaussian2), gaussian3)
+	return MOG
+}
+
+// AsymUnbalLevMOG2d is an asymmetric and unbalanced 2d multivariate Mixture of Gaussian (mode 3)
+func AsymUnbalLevMOG2d(x ad.Vector) ad.Scalar {
+	A := ad.NewMatrix(ad.RealType, 2, 2, []float64{0.5, 0.0, 0.0, 0.5})
+	B := ad.NewMatrix(ad.RealType, 2, 2, []float64{1.0, 0.0, 0.0, 1.0})
+	C := ad.NewMatrix(ad.RealType, 2, 2, []float64{2.0, 0.0, 0.0, 2.0})
+
+	mu1 := ad.NewVector(ad.RealType, []float64{4.0*math.Sqrt(3.0) + 1., 1.})
+	v1 := ads.VsubV(x, mu1)
+	Av1 := ads.MdotV(A, v1)
+	v1Av1 := ads.VdotV(v1, Av1)
+	detAinv := ad.NewReal(2)
+
+	mu2 := ad.NewVector(ad.RealType, []float64{-4.0*math.Sqrt(3.0) - 1., 1.})
+	v2 := ads.VsubV(x, mu2)
+	Av2 := ads.MdotV(B, v2)
+	v2Av2 := ads.VdotV(v2, Av2)
+	detBinv := ad.NewReal(1)
+
+	mu3 := ad.NewVector(ad.RealType, []float64{3., -11.})
+	v3 := ads.VsubV(x, mu3)
+	Av3 := ads.MdotV(C, v3)
+	v3Av3 := ads.VdotV(v3, Av3)
+	detCinv := ad.NewReal(0.5)
+
+	gaussian1 := ads.Mul(ad.NewReal(4), ads.Div(ads.Exp(ads.Mul(ad.NewReal(-1), ads.Div(v1Av1, ad.NewReal(2)))), detAinv))
+	gaussian2 := ads.Mul(ad.NewReal(1), ads.Div(ads.Exp(ads.Mul(ad.NewReal(-1), ads.Div(v2Av2, ad.NewReal(2)))), detBinv))
+	gaussian3 := ads.Mul(ad.NewReal(0.25), ads.Div(ads.Exp(ads.Mul(ad.NewReal(-1), ads.Div(v3Av3, ad.NewReal(2)))), detCinv))
 	MOG := ads.Add(ads.Add(gaussian1, gaussian2), gaussian3)
 	return MOG
 }

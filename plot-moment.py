@@ -15,23 +15,23 @@ ids.sort()
 id_list = data[:, 0]
 
 # calculate moment and classify it for each ids
-# all_moments = [[] for _ in range(int(numParticles[1:]))]
-all_moments = [[] for _ in range(int(numParticles[1:])-1)]
+all_moments = [[] for _ in range(int(numParticles[1:]))]
+# all_moments = [[] for _ in range(int(numParticles[1:])-1)]
 for id in ids:
     id = int(id)
-    if id in (2, ):
-        continue
+    # if id in (0, ):
+    #     continue
     samples = np.array([np.extract(id_list == id, data[:, i])
                         for i in range(5, len(data[0]))])
     samples = samples.T
     moments = np.array([np.dot(samples[:i+1, 0], samples[:i+1, 1])/(i+1)
                         for i in range(len(samples))])
-    # all_moments[id] = moments
+    all_moments[id] = moments
 
-    if id < 2:
-        all_moments[id] = moments
-    else:
-        all_moments[id-1] = moments
+    # if id < 2:
+    #     all_moments[id] = moments
+    # else:
+    #     all_moments[id-1] = moments
 
 
 # plot moment for each ids

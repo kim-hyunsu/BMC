@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"math/rand"
 	"runtime"
 	"strings"
 	"time"
@@ -18,7 +17,7 @@ func main() {
 	numParticles := flag.Int("numParticles", runtime.NumCPU(), "Number of particles.")
 	numSamples := flag.Int("numSamples", 1000, "Number of samples per particle.")
 	numSteps := flag.Int("numSteps", 10, "Number of steps (L).")
-	stepSize := flag.Float64("stepSize", 0.1, "Size of a step (epsilon)")
+	stepSize := flag.Float64("stepSize", 0., "Size of a step (epsilon)")
 	collision := flag.String("collision", "NormalCollision", "Type of collision.")
 	mcmc := flag.String("mcmc", "nuts", "HMC or NUTS.")
 	radius := flag.Float64("radius", 1.0, "Radius of each particle.")
@@ -31,14 +30,15 @@ func main() {
 
 	var sampler bmc.MCMC
 	var collide bmc.Collision
+	var maxAdapt int
 
 	// Sampler
 	switch *mcmc {
-	case "nuts":
+	case "NUTS":
 		sampler = bmc.NUTS{
 			StepSize: ad.NewScalar(ad.RealType, *stepSize),
 		}
-	case "hmc":
+	case "HMC":
 		sampler = bmc.HMC{
 			StepSize: ad.NewScalar(ad.RealType, *stepSize),
 			NumSteps: *numSteps,
@@ -57,20 +57,26 @@ func main() {
 	masses := make([]ad.Scalar, *numParticles)
 	radii := make([]float64, *numParticles)
 	for i := 0; i != *numParticles; i++ {
-		masses[i] = ad.NewScalar(ad.RealType, *mass)
+		// masses[i] = ad.NewScalar(ad.RealType, *mass)
+		masses[i] = ad.NewScalar(ad.RealType, (*mass)*float64(i+1))
 		radii[i] = *radius
 	}
 	sample := make(chan bmc.Sample)
 	collidedSample := make(chan bmc.Sample, *numSamples)
 
-	rand.Seed(time.Now().UTC().UnixNano())
+	// adaptive step size
+	if *stepSize == 0. {
+		maxAdapt = *numSamples / 100
+	} else {
+		maxAdapt = 0
+	}
 	BMC := bmc.BrownianMonteCarlo{
 		Sampler:      sampler,
 		Collide:      collide,
 		NumParticles: *numParticles,
 		Radius:       radii,
 		Masses:       masses,
-		MaxAdapt:     *numSamples / 100,
+		MaxAdapt:     maxAdapt,
 	}
 	target := experiments.GetDistribution(*dist)
 	initialX := make([]float64, *dim)

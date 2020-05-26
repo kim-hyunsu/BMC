@@ -8,23 +8,16 @@ from scipy.stats import kstest
 from experiments import distributions as dist
 
 
-def coloring(id, numParticles):
-    ratio = (id+1) / (numParticles+1)
-
-    return (
-        int(255 * ratio),
-        int(225 * (1 - ratio)),
-        int(255 * ((id + 1) % 2))
-    )
-
-
 data = np.genfromtxt(sys.argv[1], delimiter=',')
 sampler, collision, distribution, numParticles, radius, numSamples = sys.argv[1].split('.csv')[
     0].split('_')
 length = len(data)
+id_list = data[length//10:, 0]
 
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
+# x, y = np.extract(id_list > 1, data[length//10:][:, 5]
+#                   ), np.extract(id_list > 1, data[length//10:][:, 6])
 x, y = data[length//10:][:, 5], data[length//10:][:, 6]
 minimum, maximum = min(np.amin(x), np.amin(y)), max(np.amax(x), np.amax(y))
 interval = [-30, 30]

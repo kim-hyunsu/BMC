@@ -1,6 +1,7 @@
 package bmc
 
 import (
+	"math"
 	"sort"
 
 	ad "github.com/pbenner/autodiff"
@@ -30,7 +31,6 @@ func NoCollision(
 	return Ps, collidedSamples, numCollisions
 }
 
-// TODO: Closest pair of points
 // NormalCollision is a collision dynamics that preserves total momenta
 func NormalCollision(
 	Xs, Ps []ad.Vector,
@@ -38,6 +38,7 @@ func NormalCollision(
 	masses []ad.Scalar,
 	numCollisions []int,
 ) ([]ad.Vector, []Sample, []int) {
+	// TODO: Closest pair of points
 	collision := make([]bool, len(Xs))
 	for i := range collision {
 		collision[i] = false
@@ -57,7 +58,7 @@ func NormalCollision(
 			deltaP := ads.VsubV(p1, p2)
 			//
 			distance := ads.Sqrt(ads.VdotV(dVector, dVector))
-			if distance.GetValue() < radius[i]+radius[j] && ads.VdotV(dVector, deltaP).GetValue() < 0 {
+			if distance.GetValue() < math.Abs(radius[i]+radius[j]) && ads.VdotV(dVector, deltaP).GetValue() < 0 {
 				collisionPairList = append(collisionPairList, collisionPair{
 					i: i, j: j,
 					distance: distance,
@@ -74,6 +75,7 @@ func NormalCollision(
 		if collision[i] || collision[j] {
 			continue
 		}
+		// fmt.Print(i+1, " and ", j+1, " are collided: ")
 		normal := ads.VdivS(pair.dVector, pair.distance)
 		p1, p2 := Ps[i], Ps[j]
 		m1, m2 := masses[i], masses[j]
@@ -81,8 +83,9 @@ func NormalCollision(
 		m2p1minusm1p2 := ads.VdotV(ads.VsubV(ads.VmulS(p1, m2), ads.VmulS(p2, m1)), normal)
 		coefficient := ads.Div(m2p1minusm1p2, avgMass)
 		changeOfMomentum := ads.VmulS(normal, coefficient)
-		Ps[i] = ads.VaddV(p1, changeOfMomentum)
-		Ps[j] = ads.VsubV(p2, changeOfMomentum)
+		Ps[i] = ads.VsubV(p1, changeOfMomentum)
+		Ps[j] = ads.VaddV(p2, changeOfMomentum)
+		// fmt.Print(p1, "->", Ps[i], "and", p2, "->", Ps[j], "\n")
 		collision[i] = true
 		collision[j] = true
 		numCollisions[i]++
